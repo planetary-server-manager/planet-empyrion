@@ -1,38 +1,33 @@
-FROM ubuntu:latest
+FROM --platform=$BUILDPLATFORM ghcr.io/planetary-server-manager/planetary-steam-base:latest AS build
+ARG TARGETOS
+ARG TARGETARCH
 
-LABEL maintainer="thekraken8him"
-
-ENV TIMEZONE=America/Los_Angeles \
-    PUID=0 \
-    PGID=0
+LABEL maintainer="renegadespork"
 
 EXPOSE 30000-30004/udp 30000-30004/tcp
 
 # Install Wine
 RUN dpkg --add-architecture i386
 RUN apt-get update
-RUN apt-get install software-properties-common apt-transport-https curl wget -y
+RUN apt-get install wget -y
 RUN mkdir -pm755 /etc/apt/keyrings
 RUN wget -O /etc/apt/keyrings/winehq-archive.key https://dl.winehq.org/wine-builds/winehq.key
 RUN wget -NP /etc/apt/sources.list.d/ https://dl.winehq.org/wine-builds/ubuntu/dists/noble/winehq-noble.sources
 RUN apt-get update
 RUN apt-get install --install-recommends wine-stable -y
 
-RUN mkdir /steam
-RUN mkdir /server
-RUN mkdir /saves
 RUN mkdir /config
 
-RUN cd /steam
-RUN add-apt-repository multiverse
-RUN apt-get update
-RUN install steamcmd -y
+COPY /scripts /scripts
 
-COPY server.sh server.sh
-COPY generate-map.sh generate-map.sh
-COPY logo.txt logo.txt
+# Fix permissions
+RUN usermod -l empyrion ubuntu
+RUN chmod -R 770 /scripts && \
+    chmod -R 770 /config
 
-RUN chmod +x server.sh
-RUN chmod +x generate-map.sh
+RUN chown -R empyrion /scripts && \
+    chown -R empyrion /config
 
-CMD ["/bin/bash", "server.sh"]
+USER empyrion
+
+CMD ["/bin/bash", "/scripts/bootstrap.sh"]
